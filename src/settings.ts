@@ -1,7 +1,4 @@
 import { Notice, PluginSettingTab, Setting, App, Platform } from "obsidian";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import h from "vhtml";
-
 import type SRPlugin from "src/main";
 import { t } from "src/lang/helpers";
 
@@ -17,16 +14,17 @@ export interface SRSettings {
     showContextInCards: boolean;
     flashcardHeightPercentage: number;
     flashcardWidthPercentage: number;
-    showFileNameInFileLink: boolean;
     randomizeCardOrder: boolean;
     convertHighlightsToClozes: boolean;
     convertBoldTextToClozes: boolean;
     convertCurlyBracketsToClozes: boolean;
-    singlelineCardSeparator: string;
-    singlelineReversedCardSeparator: string;
+    singleLineCardSeparator: string;
+    singleLineReversedCardSeparator: string;
     multilineCardSeparator: string;
     multilineReversedCardSeparator: string;
+    editLaterTag: string;
     // notes
+    enableNoteReviewPaneOnStartup: boolean;
     tagsToReview: string[];
     noteFoldersToIgnore: string[];
     openRandomNote: boolean;
@@ -57,16 +55,17 @@ export const DEFAULT_SETTINGS: SRSettings = {
     showContextInCards: true,
     flashcardHeightPercentage: Platform.isMobile ? 100 : 80,
     flashcardWidthPercentage: Platform.isMobile ? 100 : 40,
-    showFileNameInFileLink: false,
     randomizeCardOrder: true,
     convertHighlightsToClozes: true,
     convertBoldTextToClozes: false,
     convertCurlyBracketsToClozes: false,
-    singlelineCardSeparator: "::",
-    singlelineReversedCardSeparator: ":::",
+    singleLineCardSeparator: "::",
+    singleLineReversedCardSeparator: ":::",
     multilineCardSeparator: "?",
     multilineReversedCardSeparator: "??",
+    editLaterTag: "#edit-later",
     // notes
+    enableNoteReviewPaneOnStartup: true,
     tagsToReview: ["#review"],
     noteFoldersToIgnore: [],
     openRandomNote: false,
@@ -74,7 +73,7 @@ export const DEFAULT_SETTINGS: SRSettings = {
     disableFileMenuReviewOptions: false,
     maxNDaysNotesReviewQueue: 365,
     // UI settings
-    initiallyExpandAllSubdecksInTree: true,
+    initiallyExpandAllSubdecksInTree: false,
     // algorithm
     baseEase: 250,
     lapsesIntervalChange: 0.5,
@@ -105,10 +104,11 @@ export class SRSettingTab extends PluginSettingTab {
 
         containerEl.empty();
 
-        containerEl.createDiv().innerHTML = <h2>{t("SETTINGS_HEADER")}</h2>;
+        const header = containerEl.createEl("h1", { text: `${t("SETTINGS_HEADER")}` });
+        header.addClass("sr-centered");
 
         containerEl.createDiv().innerHTML = t("CHECK_WIKI", {
-            wiki_url: "https://github.com/st3v3nmw/obsidian-spaced-repetition/wiki",
+            wiki_url: "https://www.stephenmwangi.com/obsidian-spaced-repetition/",
         });
 
         new Setting(containerEl)
@@ -128,7 +128,7 @@ export class SRSettingTab extends PluginSettingTab {
                     })
             );
 
-        containerEl.createDiv().innerHTML = <h3>{t("FLASHCARDS")}</h3>;
+        containerEl.createEl("h3", { text: `${t("FLASHCARDS")}` });
 
         new Setting(containerEl)
             .setName(t("FLASHCARD_TAGS"))
@@ -242,15 +242,6 @@ export class SRSettingTab extends PluginSettingTab {
                     });
             });
 
-        new Setting(containerEl).setName(t("FILENAME_OR_OPEN_FILE")).addToggle((toggle) =>
-            toggle
-                .setValue(this.plugin.data.settings.showFileNameInFileLink)
-                .onChange(async (value) => {
-                    this.plugin.data.settings.showFileNameInFileLink = value;
-                    await this.plugin.savePluginData();
-                })
-        );
-
         new Setting(containerEl).setName(t("RANDOMIZE_CARD_ORDER")).addToggle((toggle) =>
             toggle
                 .setValue(this.plugin.data.settings.randomizeCardOrder)
@@ -294,10 +285,10 @@ export class SRSettingTab extends PluginSettingTab {
             .setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING"))
             .addText((text) =>
                 text
-                    .setValue(this.plugin.data.settings.singlelineCardSeparator)
+                    .setValue(this.plugin.data.settings.singleLineCardSeparator)
                     .onChange((value) => {
                         applySettingsUpdate(async () => {
-                            this.plugin.data.settings.singlelineCardSeparator = value;
+                            this.plugin.data.settings.singleLineCardSeparator = value;
                             await this.plugin.savePluginData();
                         });
                     })
@@ -307,8 +298,8 @@ export class SRSettingTab extends PluginSettingTab {
                     .setIcon("reset")
                     .setTooltip(t("RESET_DEFAULT"))
                     .onClick(async () => {
-                        this.plugin.data.settings.singlelineCardSeparator =
-                            DEFAULT_SETTINGS.singlelineCardSeparator;
+                        this.plugin.data.settings.singleLineCardSeparator =
+                            DEFAULT_SETTINGS.singleLineCardSeparator;
                         await this.plugin.savePluginData();
                         this.display();
                     });
@@ -319,10 +310,10 @@ export class SRSettingTab extends PluginSettingTab {
             .setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING"))
             .addText((text) =>
                 text
-                    .setValue(this.plugin.data.settings.singlelineReversedCardSeparator)
+                    .setValue(this.plugin.data.settings.singleLineReversedCardSeparator)
                     .onChange((value) => {
                         applySettingsUpdate(async () => {
-                            this.plugin.data.settings.singlelineReversedCardSeparator = value;
+                            this.plugin.data.settings.singleLineReversedCardSeparator = value;
                             await this.plugin.savePluginData();
                         });
                     })
@@ -332,8 +323,8 @@ export class SRSettingTab extends PluginSettingTab {
                     .setIcon("reset")
                     .setTooltip(t("RESET_DEFAULT"))
                     .onClick(async () => {
-                        this.plugin.data.settings.singlelineReversedCardSeparator =
-                            DEFAULT_SETTINGS.singlelineReversedCardSeparator;
+                        this.plugin.data.settings.singleLineReversedCardSeparator =
+                            DEFAULT_SETTINGS.singleLineReversedCardSeparator;
                         await this.plugin.savePluginData();
                         this.display();
                     });
@@ -458,7 +449,16 @@ export class SRSettingTab extends PluginSettingTab {
                     });
             });
 
-        containerEl.createDiv().innerHTML = <h3>{t("NOTES")}</h3>;
+        containerEl.createEl("h3", { text: `${t("NOTES")}` });
+
+        new Setting(containerEl).setName(t("REVIEW_PANE_ON_STARTUP")).addToggle((toggle) =>
+            toggle
+                .setValue(this.plugin.data.settings.enableNoteReviewPaneOnStartup)
+                .onChange(async (value) => {
+                    this.plugin.data.settings.enableNoteReviewPaneOnStartup = value;
+                    await this.plugin.savePluginData();
+                })
+        );
 
         new Setting(containerEl)
             .setName(t("TAGS_TO_REVIEW"))
@@ -542,7 +542,7 @@ export class SRSettingTab extends PluginSettingTab {
                     });
             });
 
-        containerEl.createDiv().innerHTML = <h3>{t("UI_PREFERENCES")}</h3>;
+        containerEl.createEl("h3", { text: `${t("UI_PREFERENCES")}` });
 
         new Setting(containerEl)
             .setName(t("INITIALLY_EXPAND_SUBDECKS_IN_TREE"))
@@ -556,10 +556,9 @@ export class SRSettingTab extends PluginSettingTab {
                     })
             );
 
-        containerEl.createDiv().innerHTML = <h3>{t("ALGORITHM")}</h3>;
+        containerEl.createEl("h3", { text: `${t("ALGORITHM")}` });
         containerEl.createDiv().innerHTML = t("CHECK_ALGORITHM_WIKI", {
-            algo_url:
-                "https://github.com/st3v3nmw/obsidian-spaced-repetition/wiki/Spaced-Repetition-Algorithm",
+            algo_url: "https://www.stephenmwangi.com/obsidian-spaced-repetition/algorithms/",
         });
 
         new Setting(containerEl)
@@ -719,7 +718,7 @@ export class SRSettingTab extends PluginSettingTab {
                     });
             });
 
-        containerEl.createDiv().innerHTML = <h3>{t("LOGGING")}</h3>;
+        containerEl.createEl("h3", { text: `${t("LOGGING")}` });
         new Setting(containerEl).setName(t("DISPLAY_DEBUG_INFO")).addToggle((toggle) =>
             toggle.setValue(this.plugin.data.settings.showDebugMessages).onChange(async (value) => {
                 this.plugin.data.settings.showDebugMessages = value;

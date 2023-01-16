@@ -97,11 +97,6 @@ export default class SRPlugin extends Plugin {
             }
         });
 
-        this.registerView(
-            REVIEW_QUEUE_VIEW_TYPE,
-            (leaf) => (this.reviewQueueView = new ReviewQueueListView(leaf, this))
-        );
-
         if (!this.data.settings.disableFileMenuReviewOptions) {
             this.registerEvent(
                 this.app.workspace.on("file-menu", (menu, fileish: TAbstractFile) => {
@@ -190,6 +185,15 @@ export default class SRPlugin extends Plugin {
         });
 
         this.addCommand({
+            id: "srs-cram-flashcards",
+            name: t("CRAM_ALL_CARDS"),
+            callback: async () => {
+                await this.sync(true);
+                new FlashcardModal(this.app, this, true).open();
+            },
+        });
+
+        this.addCommand({
             id: "srs-review-flashcards-in-note",
             name: t("REVIEW_CARDS_IN_NOTE"),
             callback: async () => {
@@ -244,7 +248,7 @@ export default class SRPlugin extends Plugin {
         this.app.workspace.getLeavesOfType(REVIEW_QUEUE_VIEW_TYPE).forEach((leaf) => leaf.detach());
     }
 
-    async sync(): Promise<void> {
+    async sync(ignoreStats = false): Promise<void> {
         if (this.syncLock) {
             return;
         }
@@ -312,7 +316,9 @@ export default class SRPlugin extends Plugin {
             if (deckPath.length !== 0) {
                 const flashcardsInNoteAvgEase: number = await this.findFlashcardsInNote(
                     note,
-                    deckPath
+                    deckPath,
+                    false,
+                    ignoreStats
                 );
 
                 if (flashcardsInNoteAvgEase > 0) {
@@ -416,8 +422,8 @@ export default class SRPlugin extends Plugin {
                 dueFlashcardsCount: this.deckTree.dueFlashcardsCount,
             })
         );
-        this.reviewQueueView.redraw();
 
+        if (this.data.settings.enableNoteReviewPaneOnStartup) this.reviewQueueView.redraw();
         this.syncLock = false;
     }
 
@@ -585,7 +591,7 @@ export default class SRPlugin extends Plugin {
             const index = this.data.settings.openRandomNote
                 ? Math.floor(Math.random() * deck.dueNotesCount)
                 : 0;
-            this.app.workspace.getLeaf().openFile(deck.scheduledNotes[index].note);
+            await this.app.workspace.getLeaf().openFile(deck.scheduledNotes[index].note);
             return;
         }
 
@@ -644,8 +650,8 @@ export default class SRPlugin extends Plugin {
         const now: number = Date.now();
         const parsedCards: [CardType, string, number][] = parse(
             fileText,
-            settings.singlelineCardSeparator,
-            settings.singlelineReversedCardSeparator,
+            settings.singleLineCardSeparator,
+            settings.singleLineReversedCardSeparator,
             settings.multilineCardSeparator,
             settings.multilineReversedCardSeparator,
             settings.convertHighlightsToClozes,
@@ -657,6 +663,10 @@ export default class SRPlugin extends Plugin {
             const cardType: CardType = parsedCard[0],
                 lineNo: number = parsedCard[2];
             let cardText: string = parsedCard[1];
+
+            if (cardText.includes(settings.editLaterTag)) {
+                continue;
+            }
 
             if (!settings.convertFoldersToDecks) {
                 const tagInCardRegEx = /^#[^\s#]+/gi;
@@ -731,16 +741,16 @@ export default class SRPlugin extends Plugin {
             } else {
                 let idx: number;
                 if (cardType === CardType.SingleLineBasic) {
-                    idx = cardText.indexOf(settings.singlelineCardSeparator);
+                    idx = cardText.indexOf(settings.singleLineCardSeparator);
                     siblingMatches.push([
                         cardText.substring(0, idx),
-                        cardText.substring(idx + settings.singlelineCardSeparator.length),
+                        cardText.substring(idx + settings.singleLineCardSeparator.length),
                     ]);
                 } else if (cardType === CardType.SingleLineReversed) {
-                    idx = cardText.indexOf(settings.singlelineReversedCardSeparator);
+                    idx = cardText.indexOf(settings.singleLineReversedCardSeparator);
                     const side1: string = cardText.substring(0, idx),
                         side2: string = cardText.substring(
-                            idx + settings.singlelineReversedCardSeparator.length
+                            idx + settings.singleLineReversedCardSeparator.length
                         );
                     siblingMatches.push([side1, side2]);
                     siblingMatches.push([side2, side1]);
@@ -779,7 +789,7 @@ export default class SRPlugin extends Plugin {
             }
 
             const context: string = settings.showContextInCards
-                ? getCardContext(lineNo, headings)
+                ? getCardContext(lineNo, headings, note.basename)
                 : "";
             const siblings: Card[] = [];
             for (let i = 0; i < siblingMatches.length; i++) {
@@ -797,6 +807,7 @@ export default class SRPlugin extends Plugin {
                     cardType,
                     siblingIdx: i,
                     siblings,
+                    editLater: false,
                 };
 
                 // card scheduled
@@ -889,18 +900,24 @@ export default class SRPlugin extends Plugin {
     }
 
     initView(): void {
-        if (this.app.workspace.getLeavesOfType(REVIEW_QUEUE_VIEW_TYPE).length) {
-            return;
-        }
+        this.registerView(
+            REVIEW_QUEUE_VIEW_TYPE,
+            (leaf) => (this.reviewQueueView = new ReviewQueueListView(leaf, this))
+        );
 
-        this.app.workspace.getRightLeaf(false).setViewState({
-            type: REVIEW_QUEUE_VIEW_TYPE,
-            active: true,
-        });
+        if (
+            this.data.settings.enableNoteReviewPaneOnStartup &&
+            app.workspace.getLeavesOfType(REVIEW_QUEUE_VIEW_TYPE).length == 0
+        ) {
+            this.app.workspace.getRightLeaf(false).setViewState({
+                type: REVIEW_QUEUE_VIEW_TYPE,
+                active: true,
+            });
+        }
     }
 }
 
-function getCardContext(cardLine: number, headings: HeadingCache[]): string {
+function getCardContext(cardLine: number, headings: HeadingCache[], note_title: string): string {
     const stack: HeadingCache[] = [];
     for (const heading of headings) {
         if (heading.position.start.line > cardLine) {
@@ -914,10 +931,10 @@ function getCardContext(cardLine: number, headings: HeadingCache[]): string {
         stack.push(heading);
     }
 
-    let context = "";
+    let context = `${note_title} > `;
     for (const headingObj of stack) {
         headingObj.heading = headingObj.heading.replace(/\[\^\d+\]/gm, "").trim();
-        context += headingObj.heading + " > ";
+        context += `${headingObj.heading} > `;
     }
     return context.slice(0, -3);
 }
