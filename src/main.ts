@@ -450,6 +450,7 @@ export default class SRPlugin extends Plugin {
         }
 
         let fileText: string = await this.app.vault.read(note);
+        fileText = fileText.replaceAll("\r\n", "\n");
         let ease: number, interval: number, delayBeforeReview: number;
         const now: number = Date.now();
         // new note
@@ -631,6 +632,7 @@ export default class SRPlugin extends Plugin {
         ignoreStats = false
     ): Promise<number> {
         let fileText: string = await this.app.vault.read(note);
+        fileText = fileText.replaceAll("\r\n", "\n");
         const fileCachedData = this.app.metadataCache.getFileCache(note) || {};
         const headings: HeadingCache[] = fileCachedData.headings || [];
         let fileChanged = false,
