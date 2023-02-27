@@ -5,10 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project (sorta) adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.10.0] - 2023-02-06
 
 ### Added
 
+-   Add a skip button to the flashcards menu
+-   Add Arabic translation ([@Issam-seghir](https://github.com/Issam-seghir))
+-   Add note title to card context
 -   Modal to edit flashcards ([@AB1908](https://github.com/AB1908))
 -   Add per-deck cramming command ([@LennyPhoenix](https://github.com/LennyPhoenix))
 -   Add flashcards menu
@@ -16,6 +19,14 @@ and this project (sorta) adheres to [Semantic Versioning](https://semver.org/spe
 ### Changed
 
 -   Add note title to card context
+
+### Removed
+
+-   Remove Giscus comments from docs website
+
+### Fixed
+
+-   Fix some terms in Chinese translations ([@emisjerry](https://github.com/emisjerry))
 
 ## [1.9.4] - 2023-01-08
 
